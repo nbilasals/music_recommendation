@@ -62,7 +62,7 @@ Berikut adalah deskripsi variabel pada dataset:
 - **track_genre**: Genre lagu.  
 
 ### Kondisi Data
-- **Jumlah Data**: 89.740 baris dan 21 kolom.
+- **Jumlah Data**: 11.4000 baris dan 21 kolom.
 - **Duplikasi Data**: Terdapat 24.259 track ID yang terduplikasi.
 - **Ketersediaan Fitur**: Dataset mencakup fitur-fitur audio, metadata lagu, dan informasi popularitas.  
 ### Kondisi Missing Values
@@ -115,7 +115,7 @@ data_no_duplicates = data.drop_duplicates(subset='track_id')
 data = data_no_duplicates.dropna()
 ```
 **Proses**:Menghapus baris yang memiliki nilai kosong atau missing values pada kolom mana pun.
-**Alasan**: Nilai yang hilang, terutama pada kolom-kolom penting seperti artists, album_name, atau track_name, dapat mengganggu kelancaran analisis atau pengembangan model. Misalnya, jika ada lagu tanpa nama artis atau album, maka sistem rekomendasi tidak dapat bekerja dengan baik. Oleh karena itu, langkah ini memastikan hanya data yang lengkap yang digunakan dalam tahap analisis selanjutnya.
+**Alasan**: Nilai yang hilang, terutama pada kolom-kolom penting seperti artists, album_name, atau track_name, dapat mengganggu kelancaran analisis atau pengembangan model. Misalnya, jika ada lagu tanpa nama artis atau album, maka sistem rekomendasi tidak dapat bekerja dengan baik. Oleh karena itu, langkah ini memastikan hanya data yang lengkap yang digunakan dalam tahap analisis selanjutnya. Alasan langsung dihapus karena rowsnya hanya sedikit dan tidak terlalu signifikan.
 
 ### 3. Menghapus Kolom yang Tidak Relevan
 
@@ -125,6 +125,16 @@ data = data.drop('Unnamed: 0', axis=1)
 ```
 **Proses**: Menghapus kolom Unnamed: 0.
 **Alasan**: Kolom ini biasanya merupakan hasil dari proses pengindeksan atau pengimporan data dan tidak mengandung informasi yang relevan untuk analisis. Menghapus kolom yang tidak diperlukan ini bertujuan untuk meminimalkan noise pada dataset dan menjaga agar hanya kolom yang relevan yang digunakan dalam analisis.
+
+### 4. TF-IDF Vectorization pada Kolom `track_genre`
+Sebelum model berbasis cosine similarity diterapkan, data pada kolom track_genre diubah menjadi vektor numerik menggunakan teknik TF-IDF.
+```python
+tf = TfidfVectorizer()
+tf.fit(data['track_genre'])
+
+```
+**Proses**: Mengubah data teks pada `track_genre` menjadi representasi numerik menggunakan metode TF-IDF.
+**Alasan**: Representasi numerik ini memungkinkan perhitungan kesamaan (*similarity*) antar genre lagu untuk model rekomendasi berbasis genre.
 
 
 ## **Modeling**
@@ -171,13 +181,14 @@ def recommend_tracks_by_name(track_name, n_recommendations=5):
 #### **Hasil (Top-5 Recommendation):**
 Input lagu: *Call It Fate, Call It Karma*
 
-| **Track Name**         | **Artists**            | **Track Genre** |
-|-------------------------|------------------------|------------------|
-| Студенточка            | Pyotr Leshchenko      | romance          |
-| Same Ole Me            | George Jones          | honky-tonk       |
-| Last Date              | Floyd Cramer          | honky-tonk       |
-| Нет, не любил он       | Valentina Ponomaryova | romance          |
-| Mi Bandoneon Y Yo      | Rubén Juárez;Carlos Garcia | tango         |
+| Track Name                  | Artists              | Genre    | Danceability | Energy | Loudness | Tempo | Valence |
+|-----------------------------|----------------------|----------|--------------|--------|----------|-------|---------|
+| **Студенточка**              | Pyotr Leshchenko     | romance  | 0.487        | 0.222  | -14.956  | 109.195 | 0.477   | 
+| **Same Ole Me**              | George Jones         | honky-tonk| 0.759        | 0.223  | -15.000  | 109.595 | 0.415   | 
+| **Last Date**                | Floyd Cramer         | honky-tonk| 0.742        | 0.311  | -14.760  | 109.679 | 0.608   | 
+| **Нет, не любил он**         | Valentina Ponomaryova| romance  | 0.456        | 0.131  | -14.903  | 109.109 | 0.189   | 
+| **Mi Bandoneon Y Yo**        | Rubén Juárez;Carlos Garcia | tango  | 0.573        | 0.249  | -14.947  | 109.519 | 0.778   | 
+
 
 ---
 
@@ -240,7 +251,46 @@ $$
 \text{Precision} = \frac{\text{Jumlah rekomendasi yang relevan}}{\text{Jumlah item yang direkomendasikan}}
 $$
 
-### Langkah-langkah evaluasi menggunakan Precision:
+### Langkah-langkah evaluasi dengan KNN 
+Sistem rekomendasi model ini dievaluasi menggunakan **Euclidean Distance** untuk mengukur kesamaan antar lagu berdasarkan fitur yang digunakan. Dalam hal ini, rekomendasi dianggap relevan jika **distance**-nya di bawah **0.5**. 
+1. **Rekomendasi yang Diberikan:**
+   Sistem memberikan 5 rekomendasi untuk lagu *Call It Fate, Call It Karma* berdasarkan model **KNN**.
+
+2. **Relevansi Berdasarkan Distance:**
+   Jika **distance** di bawah 0.5, lagu tersebut dianggap relevan, terlepas dari genre-nya.
+
+### Rekomendasi dan Distance:
+
+| Track Name                  | Artists              | Genre    | Danceability | Energy | Loudness | Tempo | Valence | Distance |
+|-----------------------------|----------------------|----------|--------------|--------|----------|-------|---------|----------|
+| **Call It Fate, Call It Karma** | The Strokes          | alt-rock | 0.544        | 0.241  | -14.779  | 109.437 | 0.359   | 0.000    |
+| **Студенточка**              | Pyotr Leshchenko     | romance  | 0.487        | 0.222  | -14.956  | 109.195 | 0.477   | 0.327761 |
+| **Same Ole Me**              | George Jones         | honky-tonk| 0.759        | 0.223  | -15.000  | 109.595 | 0.415   | 0.351411 |
+| **Last Date**                | Floyd Cramer         | honky-tonk| 0.742        | 0.311  | -14.760  | 109.679 | 0.608   | 0.406239 |
+| **Нет, не любил он**         | Valentina Ponomaryova| romance  | 0.456        | 0.131  | -14.903  | 109.109 | 0.189   | 0.414372 |
+| **Mi Bandoneon Y Yo**        | Rubén Juárez;Carlos Garcia | tango  | 0.573        | 0.249  | -14.947  | 109.519 | 0.778   | 0.459798 |
+
+
+### **Evaluasi Precision:**
+
+Dari 5 rekomendasi yang diberikan, **semuanya memiliki distance di bawah 0.5**. Oleh karena itu, **semua rekomendasi dianggap relevan**, berdasarkan kriteria yang telah ditentukan.
+
+### **Precision**:
+Precision dihitung dengan rumus:
+
+$$
+\text{Precision} = \frac{\text{Jumlah rekomendasi yang relevan}}{\text{Jumlah item yang direkomendasikan}}
+$$
+
+Karena **semua rekomendasi relevan** (karena distance-nya di bawah 0.5), maka:
+
+$$
+\text{Precision} = \frac{5}{5} = 1 \text{ atau } 100\%
+$$
+
+Ini berarti 100% dari rekomendasi yang diberikan oleh sistem adalah relevan (mempunyai genre yang sesuai).
+
+### Langkah-langkah evaluasi dengan Cosine Similarity
 1. **Rekomendasi yang Diberikan:**  
    Sistem memberikan 5 item rekomendasi untuk lagu *Call It Fate, Call It Karma*. Dalam hal ini, semua rekomendasi yang diberikan adalah lagu dengan genre **alt-rock**.
 
@@ -256,3 +306,5 @@ $$
 
 Ini berarti 100% dari rekomendasi yang diberikan oleh sistem adalah relevan (mempunyai genre yang sesuai).
 
+# Kesimpulan
+Model rekomendasi musik yang menggunakan **Content-Based Filtering** dengan algoritma **K-Nearest Neighbors (KNN)** dan **Cosine Similarity** berhasil menjawab masalah pengguna yang kesulitan menemukan lagu sesuai selera mereka tanpa pencarian manual. Sistem ini memberikan rekomendasi berdasarkan fitur audio seperti *danceability*, *energy*, *tempo*, dan *valence*, serta genre lagu yang relevan, tanpa bergantung pada popularitas atau data historis. Kedua pendekatan tersebut berhasil mencapai **precision 100%**, artinya semua rekomendasi yang diberikan relevan dan sesuai dengan preferensi pengguna. Dengan demikian, model ini berhasil memberikan rekomendasi yang lebih personal dan relevan, bahkan bagi pengguna baru, yang meningkatkan pengalaman pengguna dan mengatasi masalah pencarian lagu yang memakan waktu.
