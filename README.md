@@ -288,7 +288,7 @@ $$
 \text{Precision} = \frac{5}{5} = 1 \text{ atau } 100\%
 $$
 
-Ini berarti 100% dari rekomendasi yang diberikan oleh sistem adalah relevan (mempunyai genre yang sesuai).
+Ini berarti 100% dari rekomendasi yang diberikan oleh sistem adalah relevan (mempunyai fitur audio yang sesuai).
 
 ### Langkah-langkah evaluasi dengan Cosine Similarity
 1. **Rekomendasi yang Diberikan:**  
